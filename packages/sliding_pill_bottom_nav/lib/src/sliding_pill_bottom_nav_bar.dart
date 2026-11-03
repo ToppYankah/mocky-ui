@@ -704,23 +704,38 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
   }
 
 
-  Widget _buildIcon(SlidingPillNavBarItem item, Color color, bool active) {
+  Widget _buildIcon(SlidingPillNavBarItem item, bool active) {
     final size = _metrics.iconSize;
+    final color = active
+        ? (item.activeIconColor ?? _navTheme.iconColor(active: true))
+        : (item.inactiveIconColor ?? _navTheme.iconColor(active: false));
     if (item.iconBuilder != null) {
       return item.iconBuilder!(
         context,
-        SlidingPillNavItemVisualState(active: active, color: color, iconSize: size),
+        SlidingPillNavItemVisualState(
+          active: active,
+          color: color,
+          iconSize: size,
+          activeIcon: item.activeIcon ?? item.icon,
+          inactiveIcon: item.inactiveIcon ?? item.icon,
+        ),
       );
     }
-    return _AnimatedColorIcon(icon: item.icon!, color: color, size: size);
+    return _AnimatedNavIcon(
+      icon: item.iconFor(active: active),
+      color: color,
+      size: size,
+    );
+  }
+
+  Color _labelColor(SlidingPillNavBarItem item, {required bool active}) {
+    return active ? _navTheme.selectedAccent : _navTheme.itemInactive;
   }
 
   Widget _buildItem(int index) {
     final item = widget.items[index];
     final active = _isActive(index);
-    final color = active
-        ? _navTheme.selectedAccent
-        : _navTheme.itemInactive;
+    final labelColor = _labelColor(item, active: active);
     final style = item.labelStyle ?? _labelStyle(context, active: active);
     final tabLabel = MaterialLocalizations.of(context)
         .tabLabel(tabIndex: index + 1, tabCount: _itemCount);
@@ -767,7 +782,7 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildIcon(item, color, active),
+              _buildIcon(item, active),
               SizedBox(height: _metrics.iconLabelGap),
               // Hidden labels keep their line so icons never shift when the
               // active item changes.
@@ -776,7 +791,7 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
                 child: _AnimatedColorText(
                   label: item.label,
                   style: style,
-                  color: color,
+                  color: labelColor,
                 ),
               ),
             ],
@@ -787,8 +802,8 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
   }
 }
 
-class _AnimatedColorIcon extends StatelessWidget {
-  const _AnimatedColorIcon({
+class _AnimatedNavIcon extends StatelessWidget {
+  const _AnimatedNavIcon({
     required this.icon,
     required this.color,
     required this.size,
@@ -803,7 +818,7 @@ class _AnimatedColorIcon extends StatelessWidget {
     return TweenAnimationBuilder<Color?>(
       tween: ColorTween(begin: color, end: color),
       duration: SlidingPillNavBarMotion.of(context).short,
-      builder: (context, value, _) => Icon(icon, color: value, size: size),
+      builder: (context, value, child) => Icon(icon, color: value, size: size),
     );
   }
 }

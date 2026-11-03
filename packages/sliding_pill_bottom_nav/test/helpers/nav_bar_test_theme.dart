@@ -27,6 +27,7 @@ abstract final class NavBarTestTheme {
     final nav = (isDark ? SlidingPillNavBarTheme.dark : SlidingPillNavBarTheme.light)
         .copyWith(
           selectedAccent: _accent,
+          activeIconColor: _accent,
           barFill: isDark
               ? const Color(0xFF1E1E1E)
               : const Color(0xFFFFFFFF),

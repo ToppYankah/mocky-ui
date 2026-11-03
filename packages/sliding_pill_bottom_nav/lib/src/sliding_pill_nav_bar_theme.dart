@@ -15,6 +15,8 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
     required this.itemInactive,
     required this.focusRingIdle,
     required this.selectedAccent,
+    required this.activeIconColor,
+    required this.inactiveIconColor,
     this.metrics = SlidingPillNavBarMetrics.standard,
     this.horizontalPadding = 20,
     this.maxBarWidth = 560,
@@ -34,6 +36,8 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
     itemInactive: Color(0xFF6B6B6B),
     focusRingIdle: Colors.transparent,
     selectedAccent: Color(0xFF0066CC),
+    activeIconColor: Color(0xFF0066CC),
+    inactiveIconColor: Color(0xFF6B6B6B),
     barShadow: [
       BoxShadow(
         color: Color(0x0F1A1A1A),
@@ -51,6 +55,8 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
     itemInactive: Color(0xFF9E9E9E),
     focusRingIdle: Colors.transparent,
     selectedAccent: Color(0xFF66B3FF),
+    activeIconColor: Color(0xFF66B3FF),
+    inactiveIconColor: Color(0xFF9E9E9E),
     barShadow: [],
     barBorderWidth: 1,
   );
@@ -62,6 +68,8 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
   final Color itemInactive;
   final Color focusRingIdle;
   final Color selectedAccent;
+  final Color activeIconColor;
+  final Color inactiveIconColor;
   final SlidingPillNavBarMetrics metrics;
   final double horizontalPadding;
   final double maxBarWidth;
@@ -77,6 +85,9 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
     return Theme.of(context).extension<SlidingPillNavBarTheme>() ??
         (brightness == Brightness.dark ? dark : light);
   }
+
+  Color iconColor({required bool active}) =>
+      active ? activeIconColor : inactiveIconColor;
 
   TextStyle labelStyle(BuildContext context, {required bool active}) {
     if (labelStyleBuilder != null) {
@@ -98,6 +109,8 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
     Color? itemInactive,
     Color? focusRingIdle,
     Color? selectedAccent,
+    Color? activeIconColor,
+    Color? inactiveIconColor,
     SlidingPillNavBarMetrics? metrics,
     double? horizontalPadding,
     double? maxBarWidth,
@@ -116,6 +129,8 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
       itemInactive: itemInactive ?? this.itemInactive,
       focusRingIdle: focusRingIdle ?? this.focusRingIdle,
       selectedAccent: selectedAccent ?? this.selectedAccent,
+      activeIconColor: activeIconColor ?? this.activeIconColor,
+      inactiveIconColor: inactiveIconColor ?? this.inactiveIconColor,
       metrics: metrics ?? this.metrics,
       horizontalPadding: horizontalPadding ?? this.horizontalPadding,
       maxBarWidth: maxBarWidth ?? this.maxBarWidth,
@@ -141,6 +156,9 @@ final class SlidingPillNavBarTheme extends ThemeExtension<SlidingPillNavBarTheme
       itemInactive: Color.lerp(itemInactive, other.itemInactive, t)!,
       focusRingIdle: Color.lerp(focusRingIdle, other.focusRingIdle, t)!,
       selectedAccent: Color.lerp(selectedAccent, other.selectedAccent, t)!,
+      activeIconColor: Color.lerp(activeIconColor, other.activeIconColor, t)!,
+      inactiveIconColor:
+          Color.lerp(inactiveIconColor, other.inactiveIconColor, t)!,
       metrics: t < 0.5 ? metrics : other.metrics,
       horizontalPadding:
           lerpDouble(horizontalPadding, other.horizontalPadding, t) ??

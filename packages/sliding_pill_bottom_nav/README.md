@@ -32,7 +32,9 @@ Use with `Scaffold(extendBody: true, bottomNavigationBar: SlidingPillBottomNavBa
 
 ## Custom icons and fonts
 
-- Pass `IconData` on [SlidingPillNavBarItem.icon], or use `iconBuilder` for SVG/custom widgets.
-- Fonts come from your app `TextTheme` via `SlidingPillNavBarTheme.labelStyleBuilder`, or per-item `labelStyle`.
+- **Icons:** set `icon` for the same glyph in both states, or `activeIcon` / `inactiveIcon` for different glyphs.
+- **Icon colours:** set `SlidingPillNavBarTheme.activeIconColor` and `inactiveIconColor` (defaults match `selectedAccent` / `itemInactive`). Override per item with `activeIconColor` / `inactiveIconColor` on [SlidingPillNavBarItem].
+- **Custom widgets:** `iconBuilder` receives [SlidingPillNavItemVisualState] with `active`, `color`, `iconSize`, and resolved `activeIcon` / `inactiveIcon`.
+- **Fonts:** `SlidingPillNavBarTheme.labelStyleBuilder` or per-item `labelStyle`.
 
 See `example/` for a minimal app.
