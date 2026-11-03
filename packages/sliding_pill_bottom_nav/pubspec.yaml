@@ -1,0 +1,32 @@
+name: sliding_pill_bottom_nav
+description: Floating pill bottom navigation bar with a sliding thumb and drag gestures.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  alchemist: ^0.14.1
+  iconsax_flutter: ^1.0.1
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - test/assets/inter/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: test/assets/inter/Inter-Regular.ttf
+          weight: 400
+        - asset: test/assets/inter/Inter-Medium.ttf
+          weight: 500
+        - asset: test/assets/inter/Inter-SemiBold.ttf
+          weight: 600
