@@ -23,6 +23,8 @@ dependencies:
 
 Pin `ref` to a tag or commit SHA for reproducible builds. Do not use `dependency_overrides` with a local path.
 
+**CI:** configure SSH deploy key access to this repo so `flutter pub get` can resolve git dependencies.
+
 ## Contributing
 
 Add new widgets under `packages/<name>/`, tag releases per package (e.g. `my_widget-v0.1.0`).
