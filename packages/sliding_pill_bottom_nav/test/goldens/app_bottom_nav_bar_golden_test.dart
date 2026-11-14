@@ -6,8 +6,9 @@ import 'package:sliding_pill_bottom_nav/sliding_pill_bottom_nav.dart';
 
 import '../helpers/golden_harness.dart';
 
-// Variants covered: standard, five tabs (390pt and 320pt at 1.3x), and
-// content fading under the bar (320pt at 1x and 1.3x).
+// Variants covered: standard, five tabs (390pt and 320pt at 1.3x),
+// content fading under the bar (320pt at 1x and 1.3x), and the centre
+// action button with the bar morphed around it.
 
 const _items = [
   SlidingPillNavBarItem(
@@ -187,6 +188,49 @@ Widget _fadeOverContent({required ThemeMode mode, required double textScale}) {
   );
 }
 
+const _centerActionItems = [
+  SlidingPillNavBarItem(
+    icon: Iconsax.home_2,
+    label: 'Home',
+    semanticLabel: 'Home tab',
+  ),
+  SlidingPillNavBarItem(
+    icon: Iconsax.flash_circle,
+    label: 'Meters',
+    semanticLabel: 'Meters tab',
+  ),
+  SlidingPillNavBarItem(
+    icon: Iconsax.message_question,
+    label: 'Support',
+    semanticLabel: 'Support tab',
+  ),
+  SlidingPillNavBarItem(
+    icon: Iconsax.profile_circle,
+    label: 'Profile',
+    semanticLabel: 'Profile tab',
+  ),
+];
+
+/// Four tabs split around the centre action, which the bar wraps.
+Widget _centerAction({required ThemeMode mode, required int selected}) {
+  return goldenHarness(
+    SlidingPillBottomNavBar(
+      items: _centerActionItems,
+      selectedIndex: selected,
+      onSelected: (_) {},
+      centerAction: SlidingPillNavBarCenterAction(
+        icon: Icons.add_rounded,
+        foregroundColor: Colors.white,
+        semanticLabel: 'New payment',
+        onPressed: () {},
+      ),
+    ),
+    themeMode: mode,
+    width: 390,
+    height: 120,
+  );
+}
+
 Future<void> main() async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -290,6 +334,20 @@ Future<void> main() async {
                 selected: selected,
                 textScale: 1.3,
               ),
+            ),
+        ],
+      ),
+    );
+
+    await goldenTest(
+      'SlidingPillBottomNavBar center action $suffix',
+      fileName: 'app_bottom_nav_bar_center_action_$suffix',
+      builder: () => GoldenTestGroup(
+        children: [
+          for (final selected in [0, 2])
+            GoldenTestScenario(
+              name: 'center_action_selected_${selected}_$suffix',
+              child: _centerAction(mode: mode, selected: selected),
             ),
         ],
       ),

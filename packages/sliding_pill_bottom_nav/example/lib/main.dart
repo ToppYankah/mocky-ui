@@ -51,11 +51,22 @@ class _ExampleShellState extends State<ExampleShell> {
       semanticLabel: 'Search tab',
     ),
     SlidingPillNavBarItem(
+      icon: Icons.notifications_rounded,
+      label: 'Alerts',
+      semanticLabel: 'Alerts tab',
+    ),
+    SlidingPillNavBarItem(
       icon: Icons.person_rounded,
       label: 'Profile',
       semanticLabel: 'Profile tab',
     ),
   ];
+
+  void _onAction() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Centre action pressed')));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +78,14 @@ class _ExampleShellState extends State<ExampleShell> {
         items: _items,
         selectedIndex: _index,
         onSelected: (i) => setState(() => _index = i),
+        // Needs an even number of items: two either side of the button.
+        centerAction: SlidingPillNavBarCenterAction(
+          icon: Icons.add_rounded,
+          semanticLabel: 'Create',
+          tooltip: 'Create',
+          foregroundColor: Colors.white,
+          onPressed: _onAction,
+        ),
       ),
     );
   }

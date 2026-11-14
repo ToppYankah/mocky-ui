@@ -8,7 +8,7 @@ Repository: [https://github.com/ToppYankah/mocky-ui.git](https://github.com/Topp
 
 | Package | Path in repo | Description |
 | --- | --- | --- |
-| `sliding_pill_bottom_nav` | `packages/sliding_pill_bottom_nav` | Floating pill bottom nav with sliding thumb, drag, and scaffold fade |
+| `sliding_pill_bottom_nav` | `packages/sliding_pill_bottom_nav` | Floating pill bottom nav with sliding thumb, drag, scaffold fade, and optional centre action button |
 
 ## Install (git only)
 

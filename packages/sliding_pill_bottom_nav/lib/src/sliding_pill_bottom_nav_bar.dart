@@ -5,7 +5,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:sliding_pill_bottom_nav/src/center_action_cradle.dart';
 import 'package:sliding_pill_bottom_nav/src/label_fit.dart';
+import 'package:sliding_pill_bottom_nav/src/sliding_pill_nav_bar_center_action.dart';
 import 'package:sliding_pill_bottom_nav/src/sliding_pill_nav_bar_item.dart';
 import 'package:sliding_pill_bottom_nav/src/sliding_pill_nav_bar_metrics.dart';
 import 'package:sliding_pill_bottom_nav/src/sliding_pill_nav_bar_motion.dart';
@@ -30,6 +32,10 @@ import 'package:sliding_pill_bottom_nav/src/sliding_pill_nav_bar_theme.dart';
 /// the tap or drag is decided); a cancelled press springs it back.
 /// It is stateless about routing: callers pass [items] and [selectedIndex]
 /// and receive taps and drag releases through [onSelected].
+///
+/// An optional [centerAction] adds a circular action button in the centre,
+/// with the items split evenly either side. It needs an even number of
+/// [items]; see [SlidingPillNavBarCenterAction].
 class SlidingPillBottomNavBar extends StatefulWidget {
   const SlidingPillBottomNavBar({
     required this.items,
@@ -37,12 +43,22 @@ class SlidingPillBottomNavBar extends StatefulWidget {
     required this.onSelected,
     this.initialThumbPosition,
     this.style,
+    this.centerAction,
     super.key,
-  });
+  }) : assert(
+         centerAction == null || items.length % 2 == 0,
+         'SlidingPillBottomNavBar.centerAction needs an even number of items '
+         'so they split evenly either side of it; got an odd count.',
+       );
 
   final List<SlidingPillNavBarItem> items;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+
+  /// Optional circular action button in the centre of the bar. Only allowed
+  /// with an even number of [items]. It is not a destination: it never
+  /// changes [selectedIndex] or calls [onSelected].
+  final SlidingPillNavBarCenterAction? centerAction;
 
   /// Optional first-frame fractional thumb position. Used by goldens to
   /// capture a mid-drag frame; defaults to [selectedIndex] when null.
@@ -119,6 +135,27 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
 
   double get _barBorderWidth =>
       widget.style?.barBorderWidth ?? _navTheme.barBorderWidth;
+
+  SlidingPillNavBarCenterAction? get _action => widget.centerAction;
+
+  /// Diameter of the centre action's circle, or 0 without one.
+  double get _actionDiameter =>
+      _action?.resolveDiameter(_metrics.barHeight) ?? 0;
+
+  /// Radius of the bar outline wrapped around the centre action.
+  double get _cradleRadius =>
+      _action == null ? 0 : _actionDiameter / 2 + _action!.cradleGap;
+
+  /// How far the cradle reaches past the bar's top and bottom edges.
+  double get _cradleProtrusion =>
+      math.max(0, _cradleRadius - _metrics.barHeight / 2);
+
+  /// Width of the empty slot the centre action leaves between the items.
+  double get _centerGap =>
+      _action == null ? 0 : 2 * (_cradleRadius + _metrics.itemOverhang);
+
+  /// Number of items left of the centre action.
+  int get _leftCount => _itemCount ~/ 2;
 
 
   @override
@@ -447,7 +484,9 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
 
   int _indexForX(double x) {
     for (var i = 0; i < _itemCount - 1; i++) {
-      if (x < _slotLefts[i] + _slotWidths[i]) return i;
+      // Halfway across any gap (the centre action's slot) to the next item.
+      final right = _slotLefts[i] + _slotWidths[i];
+      if (x < (right + _slotLefts[i + 1]) / 2) return i;
     }
     return _itemCount - 1;
   }
@@ -461,6 +500,10 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
   }
 
   void _computeSlots() {
+    if (_action != null) {
+      _computeSlotsAroundAction();
+      return;
+    }
     final rowWidth = _barWidth - 2 * _metrics.itemsInsetH;
     final widths = List.filled(_itemCount, _slotWidth);
     if (!_labelsFit) {
@@ -481,6 +524,44 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
     for (final w in widths) {
       lefts.add(x);
       x += w;
+    }
+    _slotLefts = lefts;
+    _slotWidths = widths;
+  }
+
+  /// Slots with the centre action: each half of the items shares the room
+  /// on its side of the action's gap. When labels crowd, the active slot
+  /// widens within its own half.
+  void _computeSlotsAroundAction() {
+    final half = math.max(
+      0,
+      (_barWidth - 2 * _metrics.itemsInsetH - _centerGap) / 2,
+    ).toDouble();
+    final widths = List.filled(_itemCount, _slotWidth);
+    if (!_labelsFit) {
+      final active = _dragActiveIndex ?? _selectedIndex;
+      final activeLeft = active < _leftCount;
+      final activeWidth = math.min(
+        _naturalWidths[active] - 2 * _metrics.itemOverhang,
+        half,
+      );
+      for (var i = 0; i < _itemCount; i++) {
+        final sameHalf = (i < _leftCount) == activeLeft;
+        if (i == active) {
+          widths[i] = activeWidth;
+        } else if (sameHalf) {
+          widths[i] = (half - activeWidth) / (_leftCount - 1);
+        } else {
+          widths[i] = half / _leftCount;
+        }
+      }
+    }
+    final lefts = <double>[];
+    var x = _metrics.itemsInsetH;
+    for (var i = 0; i < _itemCount; i++) {
+      if (i == _leftCount) x += _centerGap;
+      lefts.add(x);
+      x += widths[i];
     }
     _slotLefts = lefts;
     _slotWidths = widths;
@@ -556,14 +637,93 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
     // scrollable item can scroll clear of both. It ignores pointers, and the
     // padding around the pill does not hit-test, so taps there reach the
     // body.
+    final hasAction = _action != null;
+    final border = isDark
+        ? Border.all(color: _navTheme.barBorder, width: _barBorderWidth)
+        : Border.all(color: _navTheme.barBorder);
+    final content = ClipRRect(
+      borderRadius: _borderRadius,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          _barWidth = constraints.maxWidth;
+          _slotWidth =
+              (_barWidth - 2 * _metrics.itemsInsetH - _centerGap) /
+              _itemCount;
+          _computeWidths(context);
+          _computeSlots();
+          return Stack(
+            children: [
+              _buildThumb(),
+              Positioned.fill(
+                left: _metrics.itemsInsetH,
+                right: _metrics.itemsInsetH,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < _itemCount; i++) ...[
+                      if (hasAction && i == _leftCount)
+                        SizedBox(width: _centerGap),
+                      SizedBox(
+                        width: _slotWidths[i],
+                        child: _buildItem(i),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final band = SizedBox(
+      key: const ValueKey('app_bottom_nav_pill'),
+      width: double.infinity,
+      height: _metrics.barHeight,
+      // Raw pointer events bypass the arena so a press reacts on down.
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerEnd,
+        onPointerCancel: _onPointerEnd,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) => _select(_indexForX(details.localPosition.dx)),
+          onTapCancel: _onPressMaybeCancelled,
+          onHorizontalDragStart: _onDragStart,
+          onHorizontalDragUpdate: _onDragUpdate,
+          onHorizontalDragEnd: _onDragEnd,
+          onHorizontalDragCancel: _onDragCancel,
+          // With a centre action the morphed outline is painted around the
+          // band instead, so the band itself stays bare.
+          child: hasAction
+              ? content
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _navTheme.barFill,
+                    borderRadius: _borderRadius,
+                    border: border,
+                    boxShadow: _barShadow,
+                  ),
+                  child: content,
+                ),
+        ),
+      ),
+    );
+
+    // The cradle pokes past the pill; it takes its room from the padding
+    // above and below so the pill stays where it is without an action.
+    final protrusion = _cradleProtrusion;
     final pill = Padding(
       // The bottom gap equals the side gap and ignores the safe-area inset,
       // so the pill floats evenly inside the screen corners.
       padding: EdgeInsets.fromLTRB(
         _horizontalPadding,
-        _metrics.fadeExtent,
+        math.max(0, _metrics.fadeExtent - protrusion),
         _horizontalPadding,
-        _horizontalPadding,
+        math.max(0, _horizontalPadding - protrusion),
       ),
       // Bottom-aligned and sized to the pill: Scaffold.bottomNavigationBar
       // allows the full screen height, so the bar must not expand.
@@ -572,74 +732,9 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
         heightFactor: 1,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: _maxBarWidth),
-          child: SizedBox(
-            key: const ValueKey('app_bottom_nav_pill'),
-            width: double.infinity,
-            height: _metrics.barHeight,
-            // Raw pointer events bypass the arena so a press reacts on down.
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: _onPointerDown,
-              onPointerMove: _onPointerMove,
-              onPointerUp: _onPointerEnd,
-              onPointerCancel: _onPointerEnd,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: (details) =>
-                    _select(_indexForX(details.localPosition.dx)),
-                onTapCancel: _onPressMaybeCancelled,
-                onHorizontalDragStart: _onDragStart,
-                onHorizontalDragUpdate: _onDragUpdate,
-                onHorizontalDragEnd: _onDragEnd,
-                onHorizontalDragCancel: _onDragCancel,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: _navTheme.barFill,
-                    borderRadius: _borderRadius,
-                    border: isDark
-                        ? Border.all(
-                            color: _navTheme.barBorder,
-                            width: _barBorderWidth,
-                          )
-                        : Border.all(color: _navTheme.barBorder),
-                    boxShadow: _barShadow,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: _borderRadius,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        _barWidth = constraints.maxWidth;
-                        _slotWidth =
-                            (_barWidth - 2 * _metrics.itemsInsetH) /
-                            _itemCount;
-                        _computeWidths(context);
-                        _computeSlots();
-                        return Stack(
-                          children: [
-                            _buildThumb(),
-                            Positioned.fill(
-                              left: _metrics.itemsInsetH,
-                              right: _metrics.itemsInsetH,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  for (var i = 0; i < _itemCount; i++)
-                                    SizedBox(
-                                      width: _slotWidths[i],
-                                      child: _buildItem(i),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          child: hasAction
+              ? _buildWithCenterAction(band, border.top.width, protrusion)
+              : band,
         ),
       ),
     );
@@ -662,6 +757,73 @@ class _SlidingPillBottomNavBarState extends State<SlidingPillBottomNavBar>
         ),
         pill,
       ],
+    );
+  }
+
+  /// The band inside a taller box that also holds the morphed outline and
+  /// the centre action. Everything shares one Stack, so the circle's
+  /// protruding parts sit inside the box and receive taps.
+  Widget _buildWithCenterAction(
+    Widget band,
+    double borderWidth,
+    double protrusion,
+  ) {
+    final action = _action!;
+    final barHeight = _metrics.barHeight;
+    final height = barHeight + 2 * protrusion;
+    final diameter = _actionDiameter;
+    final cradleDiameter = 2 * _cradleRadius;
+    return SizedBox(
+      key: const ValueKey('app_bottom_nav_center_action_area'),
+      width: double.infinity,
+      height: height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          return Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    key: const ValueKey('app_bottom_nav_cradle'),
+                    painter: CenterActionCradlePainter(
+                      band: Rect.fromLTWH(0, protrusion, width, barHeight),
+                      borderRadius: _borderRadius,
+                      radius: _cradleRadius,
+                      smoothing: action.cradleSmoothing,
+                      fill: _navTheme.barFill,
+                      borderColor: _navTheme.barBorder,
+                      borderWidth: borderWidth,
+                      shadows: _barShadow,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: protrusion,
+                height: barHeight,
+                child: band,
+              ),
+              // The cradle around the circle is part of the action, not the
+              // items: presses there neither select nor move the thumb.
+              SizedBox.square(
+                dimension: cradleDiameter,
+                child: const ClipOval(child: AbsorbPointer()),
+              ),
+              _CenterActionButton(
+                action: action,
+                diameter: diameter,
+                focusRingColor: _navTheme.itemActive,
+                focusRingWidth: _metrics.focusRingWidth,
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -845,6 +1007,120 @@ class _AnimatedColorText extends StatelessWidget {
         softWrap: false,
         overflow: TextOverflow.visible,
         style: style.copyWith(color: value),
+      ),
+    );
+  }
+}
+
+/// The solid circular centre action: elevated, with an ink ripple and a
+/// slight press-in, a keyboard focus ring, and button semantics.
+class _CenterActionButton extends StatefulWidget {
+  const _CenterActionButton({
+    required this.action,
+    required this.diameter,
+    required this.focusRingColor,
+    required this.focusRingWidth,
+  });
+
+  final SlidingPillNavBarCenterAction action;
+  final double diameter;
+  final Color focusRingColor;
+  final double focusRingWidth;
+
+  @override
+  State<_CenterActionButton> createState() => _CenterActionButtonState();
+}
+
+class _CenterActionButtonState extends State<_CenterActionButton> {
+  bool _pressed = false;
+  bool _focused = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final action = widget.action;
+    final navTheme = SlidingPillNavBarTheme.of(context);
+    final enabled = action.onPressed != null;
+    final background = action.backgroundColor ?? navTheme.selectedAccent;
+    final foreground =
+        action.foregroundColor ??
+        (ThemeData.estimateBrightnessForColor(background) == Brightness.dark
+            ? Colors.white
+            : Colors.black);
+    final reduced = SlidingPillNavBarMotion.reduced(context);
+    final duration = reduced
+        ? Duration.zero
+        : SlidingPillNavBarMotion.of(context).short;
+
+    final content = IconTheme.merge(
+      data: IconThemeData(color: foreground, size: action.iconSize),
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: foreground),
+        child: Center(
+          child:
+              action.child ??
+              Icon(action.icon, color: foreground, size: action.iconSize),
+        ),
+      ),
+    );
+
+    Widget button = AnimatedScale(
+      scale: _pressed ? 0.92 : 1,
+      duration: duration,
+      curve: Curves.easeOut,
+      child: Material(
+        color: enabled ? background : background.withValues(alpha: 0.5),
+        shape: const CircleBorder(),
+        elevation: action.elevation,
+        shadowColor: action.shadowColor,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          focusNode: action.focusNode,
+          customBorder: const CircleBorder(),
+          onTap: action.onPressed,
+          onHighlightChanged: _setPressed,
+          onFocusChange: (value) => setState(() => _focused = value),
+          splashColor: foreground.withValues(alpha: 0.24),
+          highlightColor: foreground.withValues(alpha: 0.12),
+          focusColor: foreground.withValues(alpha: 0.12),
+          child: SizedBox.square(dimension: widget.diameter, child: content),
+        ),
+      ),
+    );
+
+    // Focus ring just outside the circle, in the nav bar's active colour.
+    button = DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: ShapeDecoration(
+        shape: CircleBorder(
+          side: BorderSide(
+            color: _focused ? widget.focusRingColor : Colors.transparent,
+            width: widget.focusRingWidth,
+            strokeAlign: BorderSide.strokeAlignOutside,
+          ),
+        ),
+      ),
+      child: button,
+    );
+
+    if (action.tooltip != null) {
+      button = Tooltip(message: action.tooltip, child: button);
+    }
+
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: enabled,
+      label: action.semanticLabel,
+      excludeSemantics: true,
+      onTap: action.onPressed,
+      child: SizedBox.square(
+        key: action.key,
+        dimension: widget.diameter,
+        child: button,
       ),
     );
   }
